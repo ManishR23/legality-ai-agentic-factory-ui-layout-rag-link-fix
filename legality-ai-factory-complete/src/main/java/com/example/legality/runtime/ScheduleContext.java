@@ -3,7 +3,12 @@ package com.example.legality.runtime;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -62,10 +67,21 @@ public class ScheduleContext {
         return out;
     }
     public double hoursBetween(String start, String end) {
-        try { return Duration.between(LocalDateTime.parse(start), LocalDateTime.parse(end)).toMinutes() / 60.0; }
+        try { return Duration.between(parseToInstant(start), parseToInstant(end)).toMinutes() / 60.0; }
         catch (Exception e) {
             throw new IllegalArgumentException("Cannot compute hoursBetween(\"" + start + "\", \"" + end + "\"): " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Accepts an offset/zoned ISO-8601 timestamp (resolved to a true instant, so two
+     * timestamps with different offsets are compared correctly) or a bare LocalDateTime
+     * (treated as UTC wall-clock time, matching this method's original behavior).
+     */
+    private Instant parseToInstant(String s) {
+        try { return OffsetDateTime.parse(s).toInstant(); } catch (DateTimeParseException ignored) {}
+        try { return ZonedDateTime.parse(s).toInstant(); } catch (DateTimeParseException ignored) {}
+        return LocalDateTime.parse(s).toInstant(ZoneOffset.UTC);
     }
     private List<JsonNode> array(JsonNode n) {
         List<JsonNode> out = new ArrayList<>(); if (n != null && n.isArray()) n.forEach(out::add); return out;

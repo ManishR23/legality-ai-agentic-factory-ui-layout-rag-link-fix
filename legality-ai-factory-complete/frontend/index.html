@@ -1,0 +1,510 @@
+<title>Crew Legality Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  /* ============ Tokens ============ */
+  :root {
+    --navy: #0033A0;      /* United primary blue -- Pantone 286C */
+    --sky: #005DAA;       /* United secondary blue -- Pantone 300C */
+    --navy-ink: #041338;
+
+    --ground: #EEF2F9;
+    --surface: #FFFFFF;
+    --surface-2: #F6F8FC;
+    --line: #D7DEEC;
+    --line-strong: #B9C4DC;
+    --ink: #0E1A33;
+    --ink-muted: #4B5776;
+    --ink-faint: #7583A3;
+
+    --on-navy: #FFFFFF;
+    --focus: #005DAA;
+
+    --pass-bg: #E4F5EC;   --pass-fg: #0F6B41;   --pass-line: #B7E1CB;
+    --violation-bg: #FCE8E7; --violation-fg: #A31D17; --violation-line: #F3BEBA;
+    --review-bg: #FCEFD9;  --review-fg: #8A5A00;  --review-line: #F0D6A0;
+    --error-bg: #F0E7FA;   --error-fg: #5B33A0;   --error-line: #DCC6F2;
+
+    --radius: 8px;
+    --radius-sm: 5px;
+    --font-display: "IBM Plex Sans", system-ui, sans-serif;
+    --font-body: "IBM Plex Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --navy: #476FD1; --sky: #6FB2E8; --navy-ink: #E7EDFB;
+      --ground: #0A0F1E; --surface: #121A2E; --surface-2: #17203A;
+      --line: #2A3557; --line-strong: #3B4A78;
+      --ink: #E7ECF8; --ink-muted: #A6B1D1; --ink-faint: #7C88AC;
+      --on-navy: #0A0F1E; --focus: #6FB2E8;
+      --pass-bg: #10301F;   --pass-fg: #6FDBA0;   --pass-line: #1E5236;
+      --violation-bg: #3A1613;  --violation-fg: #F29891;  --violation-line: #5E2620;
+      --review-bg: #3A2A0B;   --review-fg: #F0C066;   --review-line: #5C4416;
+      --error-bg: #2A1B44;   --error-fg: #C9A6F2;   --error-line: #432A63;
+    }
+  }
+  :root[data-theme="dark"] {
+    --navy: #476FD1; --sky: #6FB2E8; --navy-ink: #E7EDFB;
+    --ground: #0A0F1E; --surface: #121A2E; --surface-2: #17203A;
+    --line: #2A3557; --line-strong: #3B4A78;
+    --ink: #E7ECF8; --ink-muted: #A6B1D1; --ink-faint: #7C88AC;
+    --on-navy: #0A0F1E; --focus: #6FB2E8;
+    --pass-bg: #10301F;   --pass-fg: #6FDBA0;   --pass-line: #1E5236;
+    --violation-bg: #3A1613;  --violation-fg: #F29891;  --violation-line: #5E2620;
+    --review-bg: #3A2A0B;   --review-fg: #F0C066;   --review-line: #5C4416;
+    --error-bg: #2A1B44;   --error-fg: #C9A6F2;   --error-line: #432A63;
+  }
+
+  /* ============ Base ============ */
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 600; margin: 0; text-wrap: balance; color: var(--ink); }
+  p { margin: 0; }
+  code, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  a { color: var(--sky); }
+  ::selection { background: var(--sky); color: var(--on-navy); }
+  label { font-size: .8rem; font-weight: 600; color: var(--ink-muted); display: block; margin-bottom: 5px; }
+
+  .visually-hidden {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+
+  .skip-link {
+    position: absolute; left: 8px; top: -48px;
+    background: var(--navy); color: var(--on-navy);
+    padding: 10px 16px; border-radius: var(--radius-sm);
+    font-weight: 600; text-decoration: none; z-index: 100;
+    transition: top .15s ease;
+  }
+  .skip-link:focus { top: 8px; }
+  :focus-visible { outline: 2.5px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+
+  /* ============ Shell ============ */
+  .shell { display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar {
+    background: var(--navy); color: var(--on-navy); padding: 14px 20px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    border-bottom: 3px solid var(--sky);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+  .brand-mark { width: 30px; height: 30px; flex: none; }
+  .brand-text h1 { font-size: 1.05rem; color: var(--on-navy); letter-spacing: .01em; }
+  .brand-text .eyebrow {
+    font-size: .68rem; text-transform: uppercase; letter-spacing: .09em;
+    color: color-mix(in srgb, var(--on-navy) 72%, transparent); font-weight: 500;
+  }
+  .topbar-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-radius: 999px; font-size: .78rem; font-weight: 500; white-space: nowrap;
+  }
+  .chip-ghost { background: color-mix(in srgb, var(--on-navy) 14%, transparent); color: var(--on-navy); border: none; }
+  .chip-live { background: var(--pass-bg); color: var(--pass-fg); border: 1px solid var(--pass-line); }
+  .chip-off { background: color-mix(in srgb, var(--on-navy) 14%, transparent); color: var(--on-navy); border: 1px solid transparent; }
+  .chip svg { width: 13px; height: 13px; flex: none; }
+  .ws-form { display: flex; align-items: center; gap: 6px; }
+  .ws-form input { width: 220px; }
+
+  .body { flex: 1; display: flex; align-items: stretch; max-width: 1400px; margin: 0 auto; width: 100%; }
+
+  /* ============ Rail ============ */
+  .rail { width: 250px; flex: none; border-right: 1px solid var(--line); padding: 16px 10px; display: flex; flex-direction: column; gap: 2px; overflow-x: auto; }
+  .rail-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .09em; color: var(--ink-faint); font-weight: 600; padding: 4px 10px 8px; }
+  .tab {
+    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    background: none; border: 1px solid transparent; border-radius: var(--radius-sm);
+    padding: 9px 10px; cursor: pointer; font-family: var(--font-body); font-size: .86rem; color: var(--ink-muted);
+  }
+  .tab:hover { background: var(--surface-2); color: var(--ink); }
+  .tab-num {
+    font-family: var(--font-mono); font-size: .72rem; font-weight: 600; width: 20px; height: 20px; border-radius: 5px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface-2); color: var(--ink-faint); border: 1px solid var(--line);
+  }
+  .tab-label { flex: 1; }
+  .tab-badge { font-family: var(--font-mono); font-size: .68rem; font-weight: 600; padding: 1px 6px; border-radius: 999px; flex: none; }
+  .tab[aria-selected="true"] { background: var(--surface); color: var(--navy-ink); border-color: var(--line); box-shadow: inset 3px 0 0 var(--sky); font-weight: 600; }
+  .tab[aria-selected="true"] .tab-num { background: var(--navy); color: var(--on-navy); border-color: var(--navy); }
+
+  /* ============ Main ============ */
+  main { flex: 1; min-width: 0; padding: 24px 28px 60px; }
+  .panel { display: none; flex-direction: column; gap: 20px; max-width: 980px; }
+  .panel.active { display: flex; }
+  .panel-head { display: flex; flex-direction: column; gap: 4px; }
+  .panel-eyebrow { font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; color: var(--sky); font-weight: 600; }
+  .panel-head h2 { font-size: 1.4rem; }
+  .panel-desc { color: var(--ink-muted); max-width: 68ch; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+  .card h3 { font-size: .95rem; margin-bottom: 10px; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .stat-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 120px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+  .stat-num { font-family: var(--font-mono); font-size: 1.6rem; font-weight: 600; line-height: 1; }
+  .stat-label { font-size: .74rem; color: var(--ink-muted); margin-top: 6px; }
+  .stat.pass .stat-num { color: var(--pass-fg); }
+  .stat.violation .stat-num { color: var(--violation-fg); }
+  .stat.review .stat-num { color: var(--review-fg); }
+  .stat.error .stat-num { color: var(--error-fg); }
+
+  .status-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: .74rem; font-weight: 600; border: 1px solid; white-space: nowrap; }
+  .status-pill svg { width: 12px; height: 12px; flex: none; }
+  .status-pill.pass { background: var(--pass-bg); color: var(--pass-fg); border-color: var(--pass-line); }
+  .status-pill.violation { background: var(--violation-bg); color: var(--violation-fg); border-color: var(--violation-line); }
+  .status-pill.review { background: var(--review-bg); color: var(--review-fg); border-color: var(--review-line); }
+  .status-pill.error { background: var(--error-bg); color: var(--error-fg); border-color: var(--error-line); }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+  table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+  caption { text-align: left; font-size: .78rem; color: var(--ink-muted); padding: 10px 14px; background: var(--surface-2); border-bottom: 1px solid var(--line); }
+  th, td { padding: 9px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+  th { background: var(--surface-2); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-muted); font-weight: 600; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-2); }
+  tbody tr.selectable { cursor: pointer; }
+  tbody tr.selected { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--sky); }
+  td.num, th.num { text-align: right; font-family: var(--font-mono); }
+  .sched-group th[colspan] { background: var(--ground); color: var(--ink); font-size: .78rem; text-transform: none; letter-spacing: 0; font-family: var(--font-mono); font-weight: 600; }
+
+  .chiprow { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tagchip { font-size: .72rem; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-muted); }
+  .idchip { font-family: var(--font-mono); font-size: .74rem; font-weight: 600; padding: 2px 7px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--line); color: var(--navy-ink); }
+  .idchip.clickable { cursor: pointer; }
+  .idchip.active { background: var(--navy); color: var(--on-navy); border-color: var(--navy); }
+
+  pre { margin: 0; padding: 16px; background: #0C1730; color: #DCE6FA; border-radius: var(--radius); overflow-x: auto; font-family: var(--font-mono); font-size: .8rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+  code.inline { background: var(--surface-2); border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px; font-size: .85em; }
+
+  .quote-block { border-left: 3px solid var(--sky); padding: 4px 0 4px 14px; color: var(--ink-muted); font-size: .87rem; white-space: pre-wrap; }
+
+  .timeline { display: flex; flex-direction: column; }
+  .duty { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; background: var(--surface); }
+  .duty-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .duty-head .id { font-family: var(--font-mono); font-weight: 600; font-size: .85rem; }
+  .duty-times { font-family: var(--font-mono); font-size: .78rem; color: var(--ink-muted); }
+  .leg-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .leg { display: flex; gap: 10px; align-items: baseline; font-size: .82rem; flex-wrap: wrap; }
+  .leg .flt { font-family: var(--font-mono); font-weight: 600; color: var(--navy-ink); width: 62px; flex: none; }
+  .leg .route { font-family: var(--font-mono); color: var(--ink-muted); }
+  .gap-marker { display: flex; align-items: center; gap: 10px; padding: 10px 4px; margin: 2px 0; }
+  .gap-marker .line { flex: 1; height: 1px; background: var(--line-strong); }
+  .gap-marker .label { font-family: var(--font-mono); font-size: .76rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; background: var(--surface-2); color: var(--ink-muted); border: 1px solid var(--line); }
+  .gap-marker.warn .line { background: var(--violation-line); }
+  .gap-marker.warn .label { color: var(--violation-fg); background: var(--violation-bg); border-color: var(--violation-line); }
+
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: .84rem; }
+  .kv dt { color: var(--ink-faint); }
+  .kv dd { margin: 0; }
+
+  .compact-list { display: flex; flex-direction: column; gap: 10px; }
+  .compact-item { display: flex; gap: 10px; align-items: baseline; font-size: .85rem; }
+  .compact-item .idchip { flex: none; }
+
+  .empty-state { color: var(--ink-faint); font-size: .87rem; padding: 18px; text-align: center; border: 1px dashed var(--line); border-radius: var(--radius); }
+
+  footer.note { font-size: .78rem; color: var(--ink-faint); border-top: 1px dashed var(--line); padding-top: 12px; display: flex; gap: 8px; align-items: flex-start; }
+  footer.note svg { width: 15px; flex: none; margin-top: 1px; }
+
+  /* ============ Form controls ============ */
+  input[type="text"], input[type="number"], textarea {
+    width: 100%; font-family: var(--font-body); font-size: .86rem; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+    padding: 8px 10px;
+  }
+  textarea { font-family: var(--font-mono); font-size: .8rem; resize: vertical; min-height: 84px; }
+  input[type="number"] { width: 72px; }
+  .field { display: flex; flex-direction: column; gap: 0; }
+  .field-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  button.btn {
+    font-family: var(--font-body); font-size: .84rem; font-weight: 600; cursor: pointer;
+    padding: 9px 16px; border-radius: var(--radius-sm); border: 1px solid transparent;
+    display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+  }
+  button.btn-primary { background: var(--navy); color: var(--on-navy); }
+  button.btn-primary:hover { background: var(--sky); }
+  button.btn-secondary { background: var(--surface); color: var(--navy-ink); border-color: var(--line-strong); }
+  button.btn-secondary:hover { background: var(--surface-2); }
+  button.btn:disabled { opacity: .5; cursor: not-allowed; }
+  button.btn .spinner { display: none; }
+  button.btn.busy .spinner { display: inline-block; }
+  button.btn.busy .btn-label::after { content: "…"; }
+
+  .spinner {
+    width: 13px; height: 13px; border-radius: 50%;
+    border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+    border-top-color: currentColor; animation: spin .7s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .status-line { font-size: .82rem; min-height: 1.3em; }
+  .status-line.ok { color: var(--pass-fg); }
+  .status-line.err { color: var(--violation-fg); }
+  .status-line.busy { color: var(--ink-muted); }
+
+  .path-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .path-row { display: flex; align-items: center; gap: 8px; font-size: .82rem; }
+  .path-row .path { font-family: var(--font-mono); flex: 1; word-break: break-all; }
+  .path-row button { background: none; border: none; color: var(--violation-fg); cursor: pointer; font-size: .78rem; font-weight: 600; padding: 2px 6px; }
+
+  @media (prefers-reduced-motion: no-preference) { .panel.active { animation: fade-in .12s ease; } }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+  @media (max-width: 860px) {
+    .body { flex-direction: column; }
+    .rail { width: 100%; flex-direction: row; border-right: none; border-bottom: 1px solid var(--line); }
+    .tab { flex-direction: column; gap: 4px; min-width: 74px; }
+    .tab-label { font-size: .74rem; text-align: center; }
+  }
+</style>
+
+<div class="shell">
+  <a class="skip-link" href="#main-panel">Skip to stage content</a>
+
+  <header class="topbar" role="banner">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <circle cx="16" cy="16" r="15" stroke="currentColor" stroke-width="2" opacity=".55"/>
+        <path d="M4 17c4-6 20-6 24 0" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        <circle cx="16" cy="12" r="3.2" fill="currentColor"/>
+      </svg>
+      <div class="brand-text">
+        <div class="eyebrow">United Crew Legality Factory</div>
+        <h1>Legality Console</h1>
+      </div>
+    </div>
+    <form class="ws-form" id="workspace-form">
+      <label for="workspace-input" style="margin:0;color:inherit;opacity:.85">Workspace</label>
+      <input type="text" id="workspace-input" class="mono" value="factory-workspace" aria-label="Workspace directory path">
+      <button type="submit" class="btn btn-secondary" style="padding:6px 12px">Set</button>
+    </form>
+    <div class="topbar-meta">
+      <span class="chip chip-ghost" id="rag-chip">
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.6"/><path d="M5.5 8l1.8 1.8L10.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span id="rag-chip-text">RAG evidence not linked</span>
+      </span>
+    </div>
+  </header>
+
+  <div class="body">
+    <nav class="rail" role="tablist" aria-orientation="vertical" aria-label="Factory pipeline stages" id="rail"></nav>
+    <main id="main-panel">
+      <div id="panels">
+
+        <!-- STAGE 0 — FA RAG -->
+        <section class="panel active" id="panel-rag" role="tabpanel" aria-labelledby="tab-rag" tabindex="0">
+          <div class="panel-head">
+            <span class="panel-eyebrow">Stage 0</span>
+            <h2>FA RAG — Retrieval Evidence</h2>
+            <p class="panel-desc">Add local United FA / FAR / CBA documents, build a knowledge base, and search it. Evidence links into the Factory Prompt in memory -- it never overwrites the prompt text itself.</p>
+          </div>
+
+          <div class="card">
+            <h3>Source documents</h3>
+            <form class="field-row" id="rag-doc-form">
+              <div class="field" style="flex:1">
+                <label for="rag-doc-path">Local file path (PDF, DOCX, XLSX, or text)</label>
+                <input type="text" id="rag-doc-path" class="mono" placeholder="C:\docs\united-fa-contract.pdf">
+              </div>
+              <button type="submit" class="btn btn-secondary">Add document</button>
+            </form>
+            <div class="path-list" id="rag-doc-list"></div>
+            <div class="btn-row" style="margin-top:14px">
+              <button type="button" class="btn btn-primary" id="rag-build-btn"><span class="spinner"></span><span class="btn-label">Build knowledge base</span></button>
+              <span class="status-line" id="rag-build-status" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Question</h3>
+            <div class="field">
+              <label for="rag-question" class="visually-hidden">RAG question</label>
+              <textarea id="rag-question" rows="2"></textarea>
+            </div>
+            <div class="btn-row" style="margin-top:10px">
+              <button type="button" class="btn btn-primary" id="rag-search-btn"><span class="spinner"></span><span class="btn-label">Search knowledge base</span></button>
+              <button type="button" class="btn btn-secondary" id="rag-evidence-btn"><span class="spinner"></span><span class="btn-label">Create evidence package</span></button>
+              <button type="button" class="btn btn-secondary" id="rag-use-btn"><span class="spinner"></span><span class="btn-label">Use evidence in Factory Prompt</span></button>
+              <span class="status-line" id="rag-search-status" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+
+          <div id="rag-results-wrap"></div>
+          <div id="rag-evidence-wrap"></div>
+        </section>
+
+        <!-- STAGE 1 — Requirements -->
+        <section class="panel" id="panel-req" role="tabpanel" aria-labelledby="tab-req" tabindex="0" hidden>
+          <div class="panel-head">
+            <span class="panel-eyebrow">Stage 1</span>
+            <h2>Requirements</h2>
+            <p class="panel-desc">Atomic, testable requirements and business rules extracted from source evidence only.</p>
+          </div>
+          <div class="card">
+            <h3>Factory prompt</h3>
+            <textarea id="factory-prompt" rows="3"></textarea>
+          </div>
+          <div class="card">
+            <h3>Factory source files</h3>
+            <p class="panel-desc" style="margin-bottom:10px">If empty, linked RAG evidence is used as the source document instead.</p>
+            <form class="field-row" id="source-doc-form">
+              <div class="field" style="flex:1">
+                <label for="source-doc-path">Local file path</label>
+                <input type="text" id="source-doc-path" class="mono" placeholder="C:\docs\requirements-brief.docx">
+              </div>
+              <button type="submit" class="btn btn-secondary">Add file</button>
+            </form>
+            <div class="path-list" id="source-doc-list"></div>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary" id="req-run-btn"><span class="spinner"></span><span class="btn-label">Generate requirements</span></button>
+            <span class="status-line" id="req-status" role="status" aria-live="polite"></span>
+          </div>
+          <div id="req-result"></div>
+        </section>
+
+        <!-- STAGE 2 — Validation -->
+        <section class="panel" id="panel-val" role="tabpanel" aria-labelledby="tab-val" tabindex="0" hidden>
+          <div class="panel-head">
+            <span class="panel-eyebrow">Stage 2</span>
+            <h2>Validation &amp; Confidence</h2>
+            <p class="panel-desc">Checks numeric parameters, applicability, traceability, and conflicts before anything reaches code generation.</p>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary" id="val-run-btn"><span class="spinner"></span><span class="btn-label">Validate requirements</span></button>
+            <span class="status-line" id="val-status" role="status" aria-live="polite"></span>
+          </div>
+          <div id="val-result"></div>
+        </section>
+
+        <!-- STAGE 3 — BRD -->
+        <section class="panel" id="panel-brd" role="tabpanel" aria-labelledby="tab-brd" tabindex="0" hidden>
+          <div class="panel-head">
+            <span class="panel-eyebrow">Stage 3</span>
+            <h2>Business Requirements Document</h2>
+            <p class="panel-desc">Implementation-ready Markdown assembled from the requirements and validation artifacts.</p>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary" id="brd-run-btn"><span class="spinner"></span><span class="btn-label">Generate BRD</span></button>
+            <span class="status-line" id="brd-status" role="status" aria-live="polite"></span>
+          </div>
+          <div id="brd-result"></div>
+        </section>
+
+        <!-- STAGE 4 — Normalized Rules -->
+        <section class="panel" id="panel-norm" role="tabpanel" aria-labelledby="tab-norm" tabindex="0" hidden>
+          <div class="panel-head">
+            <span class="panel-eyebrow">Stage 4</span>
+            <h2>Normalized Rule Catalog</h2>
+            <p class="panel-desc">The BRD converted into deterministic, machine-readable atomic rules. Thresholds live here as parameters -- never as literals in generated code.</p>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary" id="norm-run-btn"><span class="spinner"></span><span class="btn-label">Normalize rules</span></button>
+            <span class="status-line" id="norm-status" role="status" aria-live="polite"></span>
+          </div>
+          <div id="norm-result"></div>
+        </section>
+
+        <!-- STAGE 5 — Rule Code -->
+        <section class="panel" id="panel-code" role="tabpanel" aria-labelledby="tab-code" tabindex="0" hidden>
+          <div class="panel-head">
+            <span class="panel-eyebrow">Stage 5</span>
+            <h2>Rule Code Generation</h2>
+            <p class="panel-desc">One Java 17 class per rule. Every class must override <code class="inline">ruleId()</code> -- the execution engine matches compiled rules to catalog definitions by this id alone.</p>
+          </div>
+          <div class="card">
+            <h3>Rule coding prompt</h3>
+            <textarea id="coding-prompt" rows="3"></textarea>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary" id="code-run-btn"><span class="spinner"></span><span class="btn-label">Generate rule code</span></button>
+            <button type="button" class="btn btn-secondary" id="materialize-btn"><span class="spinner"></span><span class="btn-label">Materialize Java</span></button>
+            <span class="status-line" id="code-status" role="status" aria-live="polite"></span>
+          </div>
+          <div id="code-result"></div>
+        </section>
+
+        <!-- STAGE 6 — Compile / Fix -->
+        <section class="panel" id="panel-compile" role="tabpanel" aria-labelledby="tab-compile" tabindex="0" hidden>
+          <div class="panel-head">
+            <span class="panel-eyebrow">Stage 6</span>
+            <h2>Compile + Auto Fix</h2>
+            <p class="panel-desc">Compiles with the real JDK compiler. On failure, a Compile Fix Agent rewrites only what's needed to build -- it is contractually forbidden from changing a threshold, a condition, or a PASS/VIOLATION intent.</p>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-secondary" id="compile-once-btn"><span class="spinner"></span><span class="btn-label">Compile once</span></button>
+            <div class="field" style="margin:0"><label for="max-fix" style="margin:0">Max fix attempts</label><input type="number" id="max-fix" min="1" max="8" value="3"></div>
+            <button type="button" class="btn btn-primary" id="compile-autofix-btn"><span class="spinner"></span><span class="btn-label">Compile + Auto Fix</span></button>
+            <span class="status-line" id="compile-status" role="status" aria-live="polite"></span>
+          </div>
+          <div id="compile-result"></div>
+        </section>
+
+        <!-- STAGE 7 — Schedules -->
+        <section class="panel" id="panel-sched" role="tabpanel" aria-labelledby="tab-sched" tabindex="0" hidden>
+          <div class="panel-head">
+            <span class="panel-eyebrow">Stage 7</span>
+            <h2>Test Schedules</h2>
+            <p class="panel-desc">Synthetic crew schedules generated to exercise the compiled rules. Schedule generation is test-data authoring, not a legality decision.</p>
+          </div>
+          <div class="card">
+            <h3>Schedule prompt</h3>
+            <textarea id="schedule-prompt" rows="3"></textarea>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary" id="sched-run-btn"><span class="spinner"></span><span class="btn-label">Generate schedules</span></button>
+            <span class="status-line" id="sched-status" role="status" aria-live="polite"></span>
+          </div>
+          <div id="sched-result"></div>
+        </section>
+
+        <!-- STAGE 8 — Execution -->
+        <section class="panel" id="panel-exec" role="tabpanel" aria-labelledby="tab-exec" tabindex="0" hidden>
+          <div class="panel-head">
+            <span class="panel-eyebrow">Stage 8</span>
+            <h2>Rule Execution &amp; Violations</h2>
+            <p class="panel-desc">Every compiled rule runs against every schedule. A crashed rule reports <strong>ERROR</strong>; a rule that can't reach a verdict reports <strong>NEEDS REVIEW</strong> -- neither is ever counted as a legality violation.</p>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary" id="exec-run-btn"><span class="spinner"></span><span class="btn-label">Execute rules</span></button>
+            <span class="status-line" id="exec-status" role="status" aria-live="polite"></span>
+          </div>
+          <div id="exec-result"></div>
+        </section>
+
+        <!-- STAGE 9 — Explanation -->
+        <section class="panel" id="panel-explain" role="tabpanel" aria-labelledby="tab-explain" tabindex="0" hidden>
+          <div class="panel-head">
+            <span class="panel-eyebrow">Stage 9</span>
+            <h2>Grounded Explanation</h2>
+            <p class="panel-desc">Explains a schedule or violation you selected in stage 7 or 8, grounded only in the rule catalog and the engine's own output.</p>
+          </div>
+          <div id="explain-selection"></div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary" id="explain-run-btn"><span class="spinner"></span><span class="btn-label">Generate explanation</span></button>
+            <span class="status-line" id="explain-status" role="status" aria-live="polite"></span>
+          </div>
+          <div id="explain-result"></div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="/app.js"></script>

@@ -2,6 +2,12 @@ package com.example.legality.runtime;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
+
 public class RuleDefinition {
     private final JsonNode node;
 
@@ -19,6 +25,34 @@ public class RuleDefinition {
     public int param(String name, int fallback) { return getInt(name, fallback); }
     public long param(String name, long fallback) { return getLong(name, fallback); }
     public double param(String name, double fallback) { return getDouble(name, fallback); }
+
+    /**
+     * Typed accessor for String, Boolean, Integer, Long, Double, Instant, LocalDate,
+     * LocalTime, or LocalDateTime. Returns null when the parameter is absent or cannot be
+     * coerced to the requested type -- callers must treat null as "cannot evaluate" (e.g.
+     * needsReview), never substitute a guessed value.
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T param(String name, Class<T> type) {
+        JsonNode n = param(name);
+        if (n == null || n.isMissingNode() || n.isNull()) return null;
+        try {
+            Object value;
+            if (type == String.class) value = n.asText();
+            else if (type == Boolean.class) value = n.isBoolean() ? n.asBoolean() : Boolean.parseBoolean(n.asText().trim());
+            else if (type == Integer.class) value = n.isNumber() ? n.asInt() : Integer.parseInt(n.asText().trim());
+            else if (type == Long.class) value = n.isNumber() ? n.asLong() : Long.parseLong(n.asText().trim());
+            else if (type == Double.class) value = n.isNumber() ? n.asDouble() : Double.parseDouble(n.asText().trim());
+            else if (type == Instant.class) value = Instant.parse(n.asText());
+            else if (type == LocalDate.class) value = LocalDate.parse(n.asText());
+            else if (type == LocalTime.class) value = LocalTime.parse(n.asText());
+            else if (type == LocalDateTime.class) value = LocalDateTime.parse(n.asText());
+            else throw new IllegalArgumentException("RuleDefinition.param(String, Class<T>) does not support " + type.getName());
+            return (T) value;
+        } catch (NumberFormatException | DateTimeParseException ex) {
+            return null;
+        }
+    }
 
     public String getText(String name, String fallback) {
         JsonNode n = param(name);

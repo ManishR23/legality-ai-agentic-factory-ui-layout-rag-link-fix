@@ -4,7 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
+import java.time.LocalDate;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class RuleDefinitionTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -48,5 +53,43 @@ class RuleDefinitionTest {
     void missingParameterFallsBack() throws Exception {
         RuleDefinition d = def("{\"parameters\":{}}");
         assertEquals(99, d.getInt("absent", 99));
+    }
+
+    @Test
+    void typedParamParsesInstant() throws Exception {
+        RuleDefinition d = def("{\"parameters\":{\"releaseTime\":\"2026-03-14T08:00:00Z\"}}");
+        assertEquals(Instant.parse("2026-03-14T08:00:00Z"), d.param("releaseTime", Instant.class));
+    }
+
+    @Test
+    void typedParamParsesLocalDate() throws Exception {
+        RuleDefinition d = def("{\"parameters\":{\"pairingStart\":\"2026-03-14\"}}");
+        assertEquals(LocalDate.parse("2026-03-14"), d.param("pairingStart", LocalDate.class));
+    }
+
+    @Test
+    void typedParamParsesDoubleFromQuotedOrNativeNumber() throws Exception {
+        RuleDefinition quoted = def("{\"parameters\":{\"minRestHours\":\"10.5\"}}");
+        assertEquals(10.5, quoted.param("minRestHours", Double.class), 0.0001);
+        RuleDefinition native_ = def("{\"parameters\":{\"minRestHours\":10.5}}");
+        assertEquals(10.5, native_.param("minRestHours", Double.class), 0.0001);
+    }
+
+    @Test
+    void typedParamReturnsNullWhenAbsent() throws Exception {
+        RuleDefinition d = def("{\"parameters\":{}}");
+        assertNull(d.param("missing", Instant.class));
+    }
+
+    @Test
+    void typedParamReturnsNullWhenUnparseableRatherThanThrowing() throws Exception {
+        RuleDefinition d = def("{\"parameters\":{\"releaseTime\":\"not-a-timestamp\"}}");
+        assertNull(d.param("releaseTime", Instant.class));
+    }
+
+    @Test
+    void typedParamRejectsUnsupportedTypeToken() throws Exception {
+        RuleDefinition d = def("{\"parameters\":{\"x\":\"1\"}}");
+        assertThrows(IllegalArgumentException.class, () -> d.param("x", Object.class));
     }
 }
